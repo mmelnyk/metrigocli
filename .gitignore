@@ -1,0 +1,6 @@
+# ---> Go
+
+*.exe
+*.test
+*.prof
+
