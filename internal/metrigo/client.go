@@ -118,6 +118,42 @@ func (c *client) request(method, path string, data interface{}) (res json.RawMes
 	return
 }
 
+func (c *client) requestBlob(method, path string) (res []byte, latency time.Duration, err error) {
+	httpclient := &http.Client{
+		Transport: c.transport,
+		Timeout:   c.timeout,
+	}
+
+	request, err := http.NewRequest(method, c.host+path, nil)
+	if err != nil {
+		return
+	}
+
+	starttime := time.Now()
+	response, err := httpclient.Do(request)
+	if err != nil {
+		return
+	}
+	// Read content of response body first
+	content, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return
+	}
+	latency = time.Since(starttime)
+
+	response.Body.Close()
+
+	// Check status code - should be OK(200) for normal response
+	if response.StatusCode != http.StatusOK {
+		err = errors.New(response.Status)
+		return
+	}
+
+	res = content
+
+	return
+}
+
 func (c *client) HealthCheck() (*Health, time.Duration, error) {
 	health := &Health{Status: "failed"}
 	res, latency, err := c.request("GET", "/health/check", nil)
@@ -168,4 +204,44 @@ func (c *client) SetLogLevel(logger, level string) (time.Duration, error) {
 	path := fmt.Sprintf("/debug/logger/level/%s/%s", logger, level)
 	_, latency, err := c.request("PUT", path, nil)
 	return latency, err
+}
+
+func (c *client) GetTrace() ([]byte, time.Duration, error) {
+	res, latency, err := c.requestBlob("GET", "/debug/pprof/trace?seconds=5")
+	return res, latency, err
+}
+
+func (c *client) GetProfile() ([]byte, time.Duration, error) {
+	res, latency, err := c.requestBlob("GET", "/debug/pprof/profile")
+	return res, latency, err
+}
+
+func (c *client) GetBlobMetrics() ([]byte, time.Duration, error) {
+	res, latency, err := c.requestBlob("GET", "/metrics/values")
+	return res, latency, err
+}
+
+func (c *client) GetBlock() ([]byte, time.Duration, error) {
+	res, latency, err := c.requestBlob("GET", "/debug/pprof/block")
+	return res, latency, err
+}
+
+func (c *client) GetGoroutine() ([]byte, time.Duration, error) {
+	res, latency, err := c.requestBlob("GET", "/debug/pprof/goroutine")
+	return res, latency, err
+}
+
+func (c *client) GetHeap() ([]byte, time.Duration, error) {
+	res, latency, err := c.requestBlob("GET", "/debug/pprof/heap")
+	return res, latency, err
+}
+
+func (c *client) GetMutex() ([]byte, time.Duration, error) {
+	res, latency, err := c.requestBlob("GET", "/debug/pprof/mutex")
+	return res, latency, err
+}
+
+func (c *client) GetThreadCreate() ([]byte, time.Duration, error) {
+	res, latency, err := c.requestBlob("GET", "/debug/pprof/threadcreate")
+	return res, latency, err
 }
